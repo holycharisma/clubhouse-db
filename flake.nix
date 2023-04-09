@@ -8,7 +8,6 @@
     
   };
 
-
   outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -16,39 +15,20 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
+        # todo: figure out how to do this the 'non-legacy' way
+        #       - define this as an overlay or something?
+        sea_orm_cli = nixpkgs.legacyPackages.${system}.callPackage ./nixpkgs/sea-orm-cli {};
       in
       with pkgs;
       {
         devShells.default = mkShell {
           buildInputs = [
+            rust-bin.stable.latest.default
             pkg-config
             openssl
             openssl.bin
-            pkg-config
-
-            glibc
-            nodejs
-            wasm-pack
-            binaryen
-
-            rust-analyzer
-            (rust-bin.stable.latest.default.override {
-              extensions = [ "rust-src" ];
-              targets = [
-                "x86_64-unknown-linux-gnu"  
-                "wasm32-unknown-unknown"
-              ];
-            })
-
+            sea_orm_cli
           ];
-
-          shellHook = ''
-                mkdir -p .secrets && touch .secrets/.env
-                stat .secrets/jwtRS256.key > /dev/null || ssh-keygen -t rsa -b 4096 -m PEM -f ./.secrets/jwtRS256.key
-                stat .secrets/jwtRS256.key.pub > /dev/null || openssl rsa -in jwtRS256.key -pubout -outform PEM -out ./.secrets/jwtRS256.key.pub
-
-                stat hcc-db/.cargo-nix-local/bin/sea > /dev/null || cargo install sea-orm-cli --version '^0.8.1' --bin sea --root hcc-db/.cargo-nix-local/
-        '';
         };
       }
     );
